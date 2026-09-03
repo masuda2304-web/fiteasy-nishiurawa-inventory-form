@@ -1,0 +1,146 @@
+<title>閉店時 在庫個数入力 | フィットイージー西浦和店 備品管理</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="assets/style.css" />
+
+<header>
+  <h1>閉店時 在庫個数入力</h1>
+  <div class="sub">倉庫の鍵を閉める前に、棚にある個数を数字で入力してください</div>
+</header>
+
+<main>
+  <a class="back" href="index.html">← メニューに戻る</a>
+
+  <div class="card">
+    <label for="staff">担当者</label>
+    <select id="staff"></select>
+  </div>
+
+  <div class="card" id="items-card">
+    <p>読み込み中...</p>
+  </div>
+
+  <div class="card">
+    <button class="primary" id="submit-btn" disabled>この内容で登録する</button>
+    <div class="status" id="status" hidden></div>
+  </div>
+</main>
+
+<script src="assets/app.js"></script>
+<script>
+  let ITEMS = [];
+
+  async function init() {
+    const cfg = requireConfigOrRedirect();
+    if (!cfg) return;
+
+    const staffEl = document.getElementById("staff");
+    const itemsCard = document.getElementById("items-card");
+    const submitBtn = document.getElementById("submit-btn");
+    const statusEl = document.getElementById("status");
+
+    try {
+      const [{ data: staffData }, { data: itemsData }] = await Promise.all([
+        ghGetJson(cfg, "data/staff.json"),
+        ghGetJson(cfg, "data/items.json"),
+      ]);
+
+      staffEl.innerHTML = (staffData.staff || [])
+        .map((s) => `<option value="${s}">${s}</option>`)
+        .join("");
+
+      ITEMS = itemsData.items || [];
+
+      const shelves = {};
+      ITEMS.forEach((it) => {
+        const key = it.shelf || "その他";
+        (shelves[key] = shelves[key] || []).push(it);
+      });
+
+      let html = "";
+      Object.keys(shelves).forEach((shelf) => {
+        html += `<h3>${shelf}</h3>`;
+        shelves[shelf].forEach((it) => {
+          html += `
+            <div class="item-row" id="row-${it.id}">
+              <div class="name">${it.name}(${it.unit})
+                <span class="shelf">最低在庫: ${it.min_stock ?? "-"}${it.unit}</span>
+              </div>
+              <input type="number" inputmode="numeric" min="0" step="1"
+                     id="qty-${it.id}" data-id="${it.id}" data-min="${it.min_stock ?? ""}" />
+            </div>`;
+        });
+      });
+      itemsCard.innerHTML = html;
+
+      ITEMS.forEach((it) => {
+        const input = document.getElementById(`qty-${it.id}`);
+        input.addEventListener("input", () => {
+          const row = document.getElementById(`row-${it.id}`);
+          const min = input.dataset.min;
+          const val = input.value;
+          if (min !== "" && val !== "" && Number(val) < Number(min)) {
+            row.classList.add("low");
+          } else {
+            row.classList.remove("low");
+          }
+        });
+      });
+
+      submitBtn.disabled = false;
+    } catch (e) {
+      itemsCard.innerHTML = `<p style="color:#c0392b">読み込みに失敗しました: ${e.message}</p>`;
+    }
+
+    submitBtn.addEventListener("click", async () => {
+      const counts = {};
+      let missing = [];
+      ITEMS.forEach((it) => {
+        const input = document.getElementById(`qty-${it.id}`);
+        if (input.value === "") {
+          missing.push(it.name);
+        } else {
+          counts[it.id] = Number(input.value);
+        }
+      });
+
+      if (missing.length > 0) {
+        const ok = confirm(
+          `未入力の品目があります: ${missing.join("、")}\nこのまま登録してよろしいですか?(未入力の品目はチェック対象外になります)`
+        );
+        if (!ok) return;
+      }
+
+      submitBtn.disabled = true;
+      showStatus(statusEl, "登録中...", false);
+
+      const payload = {
+        date: todayDateStr(),
+        time: nowTimeStr(),
+        staff: staffEl.value,
+        counts,
+      };
+
+      const filename = `data/counts/${payload.date}_${payload.time.replace(":", "")}-${randSuffix()}.json`;
+
+      try {
+        await ghCreateJson(
+          cfg,
+          filename,
+          payload,
+          `閉店時カウント登録: ${payload.date} ${payload.time} (${payload.staff})`
+        );
+        showStatus(
+          statusEl,
+          "登録しました。最低在庫を下回っている品目があれば、まもなくChatworkに通知されます。",
+          false
+        );
+      } catch (e) {
+        showStatus(statusEl, "登録に失敗しました: " + e.message, true);
+        submitBtn.disabled = false;
+      }
+    });
+  }
+
+  init();
+</script>

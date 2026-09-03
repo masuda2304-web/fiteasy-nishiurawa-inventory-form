@@ -1,0 +1,89 @@
+<title>設定 | フィットイージー西浦和店 備品管理</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="assets/style.css" />
+
+<header>
+  <h1>設定</h1>
+  <div class="sub">この端末(ブラウザ)に一度だけ設定してください</div>
+</header>
+
+<main>
+  <a class="back" href="index.html">← メニューに戻る</a>
+
+  <div class="card">
+    <p>
+      店長から共有された「GitHubユーザー名」「データリポジトリ名」「アクセストークン」を
+      入力して保存してください。一度保存すれば、次回からこの画面を開く必要はありません。
+      入力内容はこの端末のブラウザ内にのみ保存され、外部には送信されません。
+    </p>
+
+    <label for="owner">GitHubユーザー名(データリポジトリのオーナー)</label>
+    <input type="text" id="owner" placeholder="例: masuda2304" autocomplete="off" />
+
+    <label for="repo">データリポジトリ名</label>
+    <input
+      type="text"
+      id="repo"
+      placeholder="例: fiteasy-nishiurawa-inventory-data"
+      autocomplete="off"
+    />
+
+    <label for="token">アクセストークン(Fine-grained personal access token)</label>
+    <input type="password" id="token" placeholder="github_pat_xxxxxxxx" autocomplete="off" />
+
+    <button class="primary" id="save-btn">保存する</button>
+    <button class="primary" id="test-btn" style="background:#555; margin-top:8px;">
+      接続テスト
+    </button>
+
+    <div class="status" id="status" hidden></div>
+  </div>
+</main>
+
+<script src="assets/app.js"></script>
+<script>
+  const ownerEl = document.getElementById("owner");
+  const repoEl = document.getElementById("repo");
+  const tokenEl = document.getElementById("token");
+  const statusEl = document.getElementById("status");
+
+  (function fill() {
+    ownerEl.value = localStorage.getItem(CFG_KEYS.owner) || "";
+    repoEl.value = localStorage.getItem(CFG_KEYS.repo) || "";
+    tokenEl.value = localStorage.getItem(CFG_KEYS.token) || "";
+  })();
+
+  document.getElementById("save-btn").addEventListener("click", () => {
+    if (!ownerEl.value.trim() || !repoEl.value.trim() || !tokenEl.value.trim()) {
+      showStatus(statusEl, "すべての項目を入力してください。", true);
+      return;
+    }
+    saveConfig(ownerEl.value, repoEl.value, tokenEl.value);
+    showStatus(statusEl, "保存しました。「接続テスト」で確認できます。", false);
+  });
+
+  document.getElementById("test-btn").addEventListener("click", async () => {
+    if (!ownerEl.value.trim() || !repoEl.value.trim() || !tokenEl.value.trim()) {
+      showStatus(statusEl, "先に入力・保存してください。", true);
+      return;
+    }
+    saveConfig(ownerEl.value, repoEl.value, tokenEl.value);
+    const cfg = getConfig();
+    showStatus(statusEl, "接続確認中...", false);
+    try {
+      const { data } = await ghGetJson(cfg, "data/items.json");
+      if (!data) {
+        showStatus(statusEl, "data/items.json が見つかりませんでした。リポジトリ名を確認してください。", true);
+        return;
+      }
+      showStatus(
+        statusEl,
+        `接続に成功しました。品目数: ${data.items.length}件`,
+        false
+      );
+    } catch (e) {
+      showStatus(statusEl, "接続に失敗しました: " + e.message, true);
+    }
+  });
+</script>
