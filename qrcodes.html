@@ -38,11 +38,12 @@
         return;
       }
 
+      const cacheBust = Date.now();
       listEl.innerHTML = items
         .map(
           (it) => `
         <div class="qr-card">
-          <img src="assets/qrcodes/${it.id}.png" alt="${it.name}のQRコード" />
+          <img src="assets/qrcodes/${it.id}.png?v=${cacheBust}" alt="${it.name}のQRコード" />
           <div class="meta">
             <strong>${it.name}</strong>(${it.unit})<br />
             <span class="min">棚: ${it.shelf || "-"} / 最低在庫: ${it.min_stock ?? "-"}${it.unit}</span><br />
