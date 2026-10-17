@@ -1,0 +1,227 @@
+<title>在庫履歴 | フィットイージー西浦和店 備品管理</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="assets/style.css" />
+
+<header>
+  <h1>在庫履歴</h1>
+  <div class="sub">品目ごとに、これまで登録した個数の推移を確認できます</div>
+</header>
+
+<main>
+  <a class="back" href="index.html">← メニューに戻る</a>
+
+  <div class="card">
+    <label for="search">品目名で絞り込み</label>
+    <input type="text" id="search" placeholder="例: ペーパータオル" />
+  </div>
+
+  <div id="status" class="notice warn">読み込み中...</div>
+  <div id="table-wrap" hidden></div>
+  <div id="detail" hidden></div>
+</main>
+
+<script src="assets/app.js"></script>
+<style>
+  table.history {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 13.5px;
+  }
+  table.history th,
+  table.history td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.history th {
+    background: #f0f2f5;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  table.history tr:last-child td { border-bottom: none; }
+  table.history tr.low td.qty { color: var(--danger); font-weight: bold; }
+  table.history tr { cursor: pointer; }
+  table.history tr:hover { background: #f7f9fb; }
+  .trend {
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .shelf-group {
+    margin-top: 18px;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: bold;
+    color: var(--muted);
+  }
+  #detail .close-btn {
+    float: right;
+    border: none;
+    background: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  #detail table.history td.qty { font-variant-numeric: tabular-nums; }
+</style>
+<script>
+  let cfg;
+  let items = [];
+  let itemsById = {};
+  // historyByItem[item_id] = [{date, time, staff, qty}, ...] 新しい順
+  let historyByItem = {};
+  const FETCH_LIMIT = 120; // 直近120件(1日2回なら約60日分)まで取得
+
+  function fmtTrend(entries) {
+    const last5 = entries.slice(0, 5).map((e) => e.qty).reverse();
+    return last5.join(" → ");
+  }
+
+  function renderOverview(filterText) {
+    const wrap = document.getElementById("table-wrap");
+    const text = (filterText || "").trim();
+
+    const shelves = {};
+    items.forEach((it) => {
+      if (text && !it.name.includes(text)) return;
+      const shelf = it.shelf || "その他";
+      if (!shelves[shelf]) shelves[shelf] = [];
+      shelves[shelf].push(it);
+    });
+
+    let html = "";
+    Object.keys(shelves).forEach((shelf) => {
+      html += `<div class="shelf-group">${shelf}</div>`;
+      html += `<table class="history"><thead><tr>
+        <th>品目</th><th>最新個数</th><th>最終更新</th><th>直近の推移</th>
+      </tr></thead><tbody>`;
+      shelves[shelf].forEach((it) => {
+        const hist = historyByItem[it.id] || [];
+        const latest = hist[0];
+        const low = latest && latest.qty < it.min_stock;
+        const latestText = latest ? `${latest.qty}${it.unit}` : "記録なし";
+        const whenText = latest ? `${latest.date} ${latest.time}` : "-";
+        html += `<tr data-id="${it.id}" class="${low ? "low" : ""}">
+          <td>${it.name}</td>
+          <td class="qty">${latestText}</td>
+          <td>${whenText}</td>
+          <td class="trend">${hist.length ? fmtTrend(hist) : "-"}</td>
+        </tr>`;
+      });
+      html += `</tbody></table>`;
+    });
+
+    if (!html) {
+      html = "<p>該当する品目がありません。</p>";
+    }
+
+    wrap.innerHTML = html;
+    wrap.hidden = false;
+
+    wrap.querySelectorAll("tr[data-id]").forEach((row) => {
+      row.addEventListener("click", () => showDetail(row.dataset.id));
+    });
+  }
+
+  function showDetail(itemId) {
+    const it = itemsById[itemId];
+    const hist = historyByItem[itemId] || [];
+    const detail = document.getElementById("detail");
+
+    let rows = hist
+      .map(
+        (e) => `<tr class="${e.qty < it.min_stock ? "low" : ""}">
+          <td>${e.date} ${e.time}</td>
+          <td>${e.staff}</td>
+          <td class="qty">${e.qty}${it.unit}</td>
+        </tr>`
+      )
+      .join("");
+
+    if (!rows) {
+      rows = `<tr><td colspan="3">この品目の登録履歴はまだありません。</td></tr>`;
+    }
+
+    detail.innerHTML = `
+      <div class="card">
+        <button class="close-btn" id="close-detail">✕ 閉じる</button>
+        <strong>${it.name}</strong>
+        <span style="color:#888; font-size:13px;">(${it.shelf || "-"} / 最低在庫 ${it.min_stock}${it.unit})</span>
+        <table class="history" style="margin-top:12px;">
+          <thead><tr><th>登録日時</th><th>担当</th><th>個数</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    detail.hidden = false;
+    document.getElementById("close-detail").addEventListener("click", () => {
+      detail.hidden = true;
+    });
+    detail.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function init() {
+    cfg = requireConfigOrRedirect();
+    if (!cfg) return;
+
+    const statusEl = document.getElementById("status");
+    try {
+      const { data: itemsData } = await ghGetJson(cfg, "data/items.json");
+      items = itemsData.items || [];
+      itemsById = Object.fromEntries(items.map((it) => [it.id, it]));
+
+      const files = await ghListDir(cfg, "data/counts");
+      const jsonFiles = files.filter((f) => f.name.endsWith(".json"));
+      jsonFiles.sort((a, b) => (a.name < b.name ? 1 : -1)); // ファイル名=日時順なので新しい順に
+
+      const targets = jsonFiles.slice(0, FETCH_LIMIT);
+
+      let loaded = 0;
+      for (const f of targets) {
+        statusEl.textContent = `読み込み中... (${loaded + 1}/${targets.length})`;
+        const { data } = await ghGetJson(cfg, `data/counts/${f.name}`);
+        const counts = data.counts || {};
+        Object.keys(counts).forEach((itemId) => {
+          if (!historyByItem[itemId]) historyByItem[itemId] = [];
+          historyByItem[itemId].push({
+            date: data.date,
+            time: data.time,
+            staff: data.staff,
+            qty: counts[itemId],
+          });
+        });
+        loaded++;
+      }
+      // 各品目ごとに新しい順(登録日時の降順)に並び替え
+      Object.keys(historyByItem).forEach((id) => {
+        historyByItem[id].sort((a, b) => {
+          const ta = `${a.date}T${a.time}`;
+          const tb = `${b.date}T${b.time}`;
+          return ta < tb ? 1 : -1;
+        });
+      });
+
+      statusEl.hidden = true;
+      if (jsonFiles.length > FETCH_LIMIT) {
+        statusEl.hidden = false;
+        statusEl.className = "notice warn";
+        statusEl.textContent = `登録件数が多いため、直近${FETCH_LIMIT}件分のみ表示しています。`;
+      }
+
+      renderOverview("");
+    } catch (e) {
+      statusEl.className = "notice error";
+      statusEl.textContent = `読み込みに失敗しました: ${e.message}`;
+    }
+  }
+
+  document.getElementById("search").addEventListener("input", (e) => {
+    renderOverview(e.target.value);
+  });
+
+  init();
+</script>
