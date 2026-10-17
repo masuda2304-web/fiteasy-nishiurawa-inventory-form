@@ -1,38 +1,19 @@
-<title>フィットイージー西浦和店 備品管理</title>
+<title>備品在庫管理 | フィットイージー西浦和店</title>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="assets/style.css" />
 
 <header>
-  <h1>フィットイージー西浦和店<br />備品在庫管理</h1>
-  <div class="sub" id="cfg-status">確認中...</div>
+  <h1>備品在庫管理</h1>
+  <div class="sub">フィットイージー西浦和店</div>
 </header>
 
 <main>
-  <a class="menu-btn" href="count.html">
-    閉店時 在庫個数入力
-    <small>倉庫の鍵を閉める前に、各備品の個数を入力します</small>
-  </a>
+  <a href="count.html"><button class="menu-btn">在庫個数を入力する</button></a>
+  <a href="settings.html"><button class="menu-btn secondary">設定(アクセストークン登録)</button></a>
 
-  <a class="menu-btn" href="checkout.html">
-    持ち出し・使用の登録
-    <small>備品を持ち出した/使用したときに、QRコードから登録します</small>
-  </a>
-
-  <a class="menu-btn secondary" href="qrcodes.html">
-    QRコード一覧(印刷用)
-    <small>棚に貼るQRコードラベルを確認・印刷します</small>
-  </a>
-
-  <a class="menu-btn secondary" href="settings.html">
-    設定(アクセストークン登録)
-    <small>この端末を初めて使うときに1回だけ設定します</small>
-  </a>
+  <div class="card" style="font-size:13px; color:#666;">
+    毎日 <strong>12:30〜13:00</strong> と <strong>18:30〜19:30</strong> の2回、
+    在庫個数の入力をお願いします。登録が完了すると、自動で店長のChatworkに結果が通知されます。
+  </div>
 </main>
-
-<script src="assets/app.js"></script>
-<script>
-  const cfg = getConfig();
-  const el = document.getElementById("cfg-status");
-  el.textContent = cfg ? "この端末は設定済みです" : "未設定です。「設定」から登録してください";
-</script>
