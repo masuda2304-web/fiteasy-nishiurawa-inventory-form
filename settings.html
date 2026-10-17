@@ -4,40 +4,33 @@
 <link rel="stylesheet" href="assets/style.css" />
 
 <header>
-  <h1>設定</h1>
-  <div class="sub">この端末(ブラウザ)に一度だけ設定してください</div>
+  <h1>設定(アクセストークン登録)</h1>
+  <div class="sub">最初の1回だけ、この端末に登録してください</div>
 </header>
 
 <main>
   <a class="back" href="index.html">← メニューに戻る</a>
 
   <div class="card">
-    <p>
+    <p style="margin-top:0;">
       店長から共有された「GitHubユーザー名」「データリポジトリ名」「アクセストークン」を
       入力して保存してください。一度保存すれば、次回からこの画面を開く必要はありません。
       入力内容はこの端末のブラウザ内にのみ保存され、外部には送信されません。
     </p>
 
     <label for="owner">GitHubユーザー名(データリポジトリのオーナー)</label>
-    <input type="text" id="owner" placeholder="例: masuda2304" autocomplete="off" />
+    <input type="text" id="owner" placeholder="例: masuda2304" />
 
     <label for="repo">データリポジトリ名</label>
-    <input
-      type="text"
-      id="repo"
-      placeholder="例: fiteasy-nishiurawa-inventory-data"
-      autocomplete="off"
-    />
+    <input type="text" id="repo" placeholder="例: fiteasy-nishiurawa-inventory-data" />
 
     <label for="token">アクセストークン(Fine-grained personal access token)</label>
-    <input type="password" id="token" placeholder="github_pat_xxxxxxxx" autocomplete="off" />
+    <input type="password" id="token" placeholder="github_pat_xxxxxxxx" />
 
-    <button class="primary" id="save-btn">保存する</button>
-    <button class="primary" id="test-btn" style="background:#555; margin-top:8px;">
-      接続テスト
-    </button>
+    <button class="menu-btn" id="save-btn">保存する</button>
+    <button class="menu-btn secondary" id="test-btn">接続テスト</button>
 
-    <div class="status" id="status" hidden></div>
+    <div id="msg"></div>
   </div>
 </main>
 
@@ -46,44 +39,52 @@
   const ownerEl = document.getElementById("owner");
   const repoEl = document.getElementById("repo");
   const tokenEl = document.getElementById("token");
-  const statusEl = document.getElementById("status");
+  const msgEl = document.getElementById("msg");
 
-  (function fill() {
-    ownerEl.value = localStorage.getItem(CFG_KEYS.owner) || "";
-    repoEl.value = localStorage.getItem(CFG_KEYS.repo) || "";
-    tokenEl.value = localStorage.getItem(CFG_KEYS.token) || "";
+  (function fillFromSaved() {
+    const cfg = getConfig();
+    if (cfg) {
+      ownerEl.value = cfg.owner;
+      repoEl.value = cfg.repo;
+      tokenEl.value = cfg.token;
+    }
   })();
 
+  function showMsg(text, type) {
+    msgEl.innerHTML = `<div class="notice ${type}">${text}</div>`;
+  }
+
+  function currentValues() {
+    return {
+      owner: ownerEl.value.trim(),
+      repo: repoEl.value.trim(),
+      token: tokenEl.value.trim(),
+    };
+  }
+
   document.getElementById("save-btn").addEventListener("click", () => {
-    if (!ownerEl.value.trim() || !repoEl.value.trim() || !tokenEl.value.trim()) {
-      showStatus(statusEl, "すべての項目を入力してください。", true);
+    const { owner, repo, token } = currentValues();
+    if (!owner || !repo || !token) {
+      showMsg("すべての項目を入力してください。", "error");
       return;
     }
-    saveConfig(ownerEl.value, repoEl.value, tokenEl.value);
-    showStatus(statusEl, "保存しました。「接続テスト」で確認できます。", false);
+    saveConfig(owner, repo, token);
+    showMsg("保存しました。", "ok");
   });
 
   document.getElementById("test-btn").addEventListener("click", async () => {
-    if (!ownerEl.value.trim() || !repoEl.value.trim() || !tokenEl.value.trim()) {
-      showStatus(statusEl, "先に入力・保存してください。", true);
+    const { owner, repo, token } = currentValues();
+    if (!owner || !repo || !token) {
+      showMsg("すべての項目を入力してください。", "error");
       return;
     }
-    saveConfig(ownerEl.value, repoEl.value, tokenEl.value);
-    const cfg = getConfig();
-    showStatus(statusEl, "接続確認中...", false);
+    showMsg("接続確認中...", "warn");
     try {
-      const { data } = await ghGetJson(cfg, "data/items.json");
-      if (!data) {
-        showStatus(statusEl, "data/items.json が見つかりませんでした。リポジトリ名を確認してください。", true);
-        return;
-      }
-      showStatus(
-        statusEl,
-        `接続に成功しました。品目数: ${data.items.length}件`,
-        false
-      );
+      const { data } = await ghGetJson({ owner, repo, token }, "data/items.json");
+      const count = (data.items || []).length;
+      showMsg(`接続に成功しました。品目数: ${count}件`, "ok");
     } catch (e) {
-      showStatus(statusEl, "接続に失敗しました: " + e.message, true);
+      showMsg(`接続に失敗しました: ${e.message}`, "error");
     }
   });
 </script>

@@ -1,146 +1,157 @@
-<title>閉店時 在庫個数入力 | フィットイージー西浦和店 備品管理</title>
+<title>在庫個数入力 | フィットイージー西浦和店 備品管理</title>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="stylesheet" href="assets/style.css" />
 
 <header>
-  <h1>閉店時 在庫個数入力</h1>
-  <div class="sub">倉庫の鍵を閉める前に、棚にある個数を数字で入力してください</div>
+  <h1>在庫個数入力</h1>
+  <div class="sub">棚にある実際の個数を1品目ずつ入力してください</div>
 </header>
 
 <main>
-  <a class="back" href="index.html">← メニューに戻る</a>
+  <a class="back no-print" href="index.html">← メニューに戻る</a>
+
+  <div id="time-notice"></div>
 
   <div class="card">
     <label for="staff">担当者</label>
-    <select id="staff"></select>
+    <select id="staff"><option value="">読み込み中...</option></select>
   </div>
 
-  <div class="card" id="items-card">
-    <p>読み込み中...</p>
-  </div>
+  <div id="list">読み込み中...</div>
 
-  <div class="card">
-    <button class="primary" id="submit-btn" disabled>この内容で登録する</button>
-    <div class="status" id="status" hidden></div>
-  </div>
+  <button class="menu-btn" id="submit-btn">この内容で登録する</button>
+  <div id="msg"></div>
 </main>
 
 <script src="assets/app.js"></script>
 <script>
-  let ITEMS = [];
+  let cfg;
+  let items = [];
 
-  async function init() {
-    const cfg = requireConfigOrRedirect();
-    if (!cfg) return;
-
-    const staffEl = document.getElementById("staff");
-    const itemsCard = document.getElementById("items-card");
-    const submitBtn = document.getElementById("submit-btn");
-    const statusEl = document.getElementById("status");
-
-    try {
-      const [{ data: staffData }, { data: itemsData }] = await Promise.all([
-        ghGetJson(cfg, "data/staff.json"),
-        ghGetJson(cfg, "data/items.json"),
-      ]);
-
-      staffEl.innerHTML = (staffData.staff || [])
-        .map((s) => `<option value="${s}">${s}</option>`)
-        .join("");
-
-      ITEMS = itemsData.items || [];
-
-      const shelves = {};
-      ITEMS.forEach((it) => {
-        const key = it.shelf || "その他";
-        (shelves[key] = shelves[key] || []).push(it);
-      });
-
-      let html = "";
-      Object.keys(shelves).forEach((shelf) => {
-        html += `<h3>${shelf}</h3>`;
-        shelves[shelf].forEach((it) => {
-          html += `
-            <div class="item-row" id="row-${it.id}">
-              <div class="name">${it.name}(${it.unit})
-                <span class="shelf">最低在庫: ${it.min_stock ?? "-"}${it.unit}</span>
-              </div>
-              <input type="number" inputmode="numeric" min="0" step="1"
-                     id="qty-${it.id}" data-id="${it.id}" data-min="${it.min_stock ?? ""}" />
-            </div>`;
-        });
-      });
-      itemsCard.innerHTML = html;
-
-      ITEMS.forEach((it) => {
-        const input = document.getElementById(`qty-${it.id}`);
-        input.addEventListener("input", () => {
-          const row = document.getElementById(`row-${it.id}`);
-          const min = input.dataset.min;
-          const val = input.value;
-          if (min !== "" && val !== "" && Number(val) < Number(min)) {
-            row.classList.add("low");
-          } else {
-            row.classList.remove("low");
-          }
-        });
-      });
-
-      submitBtn.disabled = false;
-    } catch (e) {
-      itemsCard.innerHTML = `<p style="color:#c0392b">読み込みに失敗しました: ${e.message}</p>`;
+  function checkTimeWindow() {
+    const m = nowMinutesOfDay();
+    const inWindow =
+      (m >= 12 * 60 + 30 && m <= 13 * 60) ||
+      (m >= 18 * 60 + 30 && m <= 19 * 60 + 30);
+    const el = document.getElementById("time-notice");
+    if (!inWindow) {
+      el.innerHTML =
+        '<div class="notice warn">現在は通常の入力時間(12:30〜13:00 / 18:30〜19:30)の外です。入力はできますが、できるだけこの時間内の登録にご協力ください。</div>';
+    } else {
+      el.innerHTML = "";
     }
+  }
 
-    submitBtn.addEventListener("click", async () => {
-      const counts = {};
-      let missing = [];
-      ITEMS.forEach((it) => {
-        const input = document.getElementById(`qty-${it.id}`);
-        if (input.value === "") {
-          missing.push(it.name);
-        } else {
-          counts[it.id] = Number(input.value);
-        }
+  function onQtyInput(e) {
+    const input = e.target;
+    const row = input.closest(".item-row");
+    const min = Number(input.dataset.min);
+    const val = Number(input.value);
+    if (input.value !== "" && val < min) {
+      row.classList.add("low");
+    } else {
+      row.classList.remove("low");
+    }
+  }
+
+  function renderItems() {
+    const listEl = document.getElementById("list");
+    const shelves = {};
+    items.forEach((it) => {
+      const shelf = it.shelf || "その他";
+      if (!shelves[shelf]) shelves[shelf] = [];
+      shelves[shelf].push(it);
+    });
+
+    let html = "";
+    Object.keys(shelves).forEach((shelf) => {
+      html += `<div class="shelf-title">${shelf}</div>`;
+      shelves[shelf].forEach((it) => {
+        html += `
+          <div class="item-row" data-id="${it.id}">
+            <div class="name">${it.name} <span class="unit">(${it.unit} / 最低在庫 ${it.min_stock}${it.unit})</span></div>
+            <input type="number" min="0" step="1" data-id="${it.id}" data-min="${it.min_stock}" />
+          </div>`;
       });
+    });
+    listEl.innerHTML = html;
 
-      if (missing.length > 0) {
-        const ok = confirm(
-          `未入力の品目があります: ${missing.join("、")}\nこのまま登録してよろしいですか?(未入力の品目はチェック対象外になります)`
-        );
-        if (!ok) return;
-      }
-
-      submitBtn.disabled = true;
-      showStatus(statusEl, "登録中...", false);
-
-      const payload = {
-        date: todayDateStr(),
-        time: nowTimeStr(),
-        staff: staffEl.value,
-        counts,
-      };
-
-      const filename = `data/counts/${payload.date}_${payload.time.replace(":", "")}-${randSuffix()}.json`;
-
-      try {
-        await ghCreateJson(
-          cfg,
-          filename,
-          payload,
-          `閉店時カウント登録: ${payload.date} ${payload.time} (${payload.staff})`
-        );
-        showStatus(
-          statusEl,
-          "登録しました。最低在庫を下回っている品目があれば、まもなくChatworkに通知されます。",
-          false
-        );
-      } catch (e) {
-        showStatus(statusEl, "登録に失敗しました: " + e.message, true);
-        submitBtn.disabled = false;
-      }
+    listEl.querySelectorAll("input[type=number]").forEach((input) => {
+      input.addEventListener("input", onQtyInput);
     });
   }
 
+  async function init() {
+    cfg = requireConfigOrRedirect();
+    if (!cfg) return;
+
+    checkTimeWindow();
+    setInterval(checkTimeWindow, 60000);
+
+    const listEl = document.getElementById("list");
+    try {
+      const [{ data: itemsData }, { data: staffData }] = await Promise.all([
+        ghGetJson(cfg, "data/items.json"),
+        ghGetJson(cfg, "data/staff.json"),
+      ]);
+
+      items = itemsData.items || [];
+      renderItems();
+
+      const staffEl = document.getElementById("staff");
+      staffEl.innerHTML = (staffData.staff || [])
+        .map((name) => `<option value="${name}">${name}</option>`)
+        .join("");
+    } catch (e) {
+      listEl.innerHTML = `<p style="color:#c0392b">読み込みに失敗しました: ${e.message}</p>`;
+    }
+  }
+
+  async function submit() {
+    const msgEl = document.getElementById("msg");
+    const staff = document.getElementById("staff").value;
+    if (!staff) {
+      msgEl.innerHTML = '<div class="notice error">担当者を選択してください。</div>';
+      return;
+    }
+
+    const counts = {};
+    let missing = false;
+    document.querySelectorAll("#list input[type=number]").forEach((input) => {
+      const id = input.dataset.id;
+      if (input.value === "") {
+        missing = true;
+        return;
+      }
+      counts[id] = Number(input.value);
+    });
+
+    if (missing) {
+      msgEl.innerHTML = '<div class="notice error">すべての品目の個数を入力してください。</div>';
+      return;
+    }
+
+    const date = todayDateStr();
+    const time = nowTimeStr();
+    const fileName = `${date}_${time.replace(":", "")}_${randSuffix()}.json`;
+    const body = { date, time, staff, counts };
+
+    msgEl.innerHTML = '<div class="notice warn">送信中...</div>';
+    try {
+      await ghCreateJson(
+        cfg,
+        `data/counts/${fileName}`,
+        body,
+        `在庫個数入力 ${date} ${time} (${staff})`
+      );
+      msgEl.innerHTML =
+        '<div class="notice ok">登録しました。最低在庫を下回った品目や、前回から大きく個数が変わった品目があれば、まもなく店長のChatworkに通知されます。</div>';
+    } catch (e) {
+      msgEl.innerHTML = `<div class="notice error">送信に失敗しました: ${e.message}</div>`;
+    }
+  }
+
+  document.getElementById("submit-btn").addEventListener("click", submit);
   init();
 </script>
