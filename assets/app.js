@@ -56,6 +56,21 @@ async function ghGetJson(cfg, path) {
   return { data: JSON.parse(text), sha: json.sha };
 }
 
+async function ghListDir(cfg, path) {
+  const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${cfg.token}`,
+      Accept: "application/vnd.github+json",
+    },
+  });
+  if (res.status === 404) return [];
+  if (!res.ok) {
+    throw new Error(`一覧取得に失敗しました: ${res.status}`);
+  }
+  return await res.json();
+}
+
 async function ghCreateJson(cfg, path, obj, message) {
   const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`;
   const body = {
