@@ -27,7 +27,7 @@
   table.history {
     width: 100%;
     border-collapse: collapse;
-    background: #fff;
+    background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 8px;
     overflow: hidden;
@@ -40,14 +40,14 @@
     border-bottom: 1px solid var(--border);
   }
   table.history th {
-    background: #f0f2f5;
+    background: rgba(34, 211, 238, 0.06);
     color: var(--muted);
     font-size: 12px;
   }
   table.history tr:last-child td { border-bottom: none; }
   table.history tr.low td.qty { color: var(--danger); font-weight: bold; }
   table.history tr { cursor: pointer; }
-  table.history tr:hover { background: #f7f9fb; }
+  table.history tr:hover { background: rgba(34, 211, 238, 0.06); }
   .trend {
     font-family: monospace;
     font-size: 12px;
@@ -152,7 +152,7 @@
       <div class="card">
         <button class="close-btn" id="close-detail">✕ 閉じる</button>
         <strong>${it.name}</strong>
-        <span style="color:#888; font-size:13px;">(${it.shelf || "-"} / 最低在庫 ${it.min_stock}${it.unit})</span>
+        <span style="color:var(--muted); font-size:13px;">(${it.shelf || "-"} / 最低在庫 ${it.min_stock}${it.unit})</span>
         <table class="history" style="margin-top:12px;">
           <thead><tr><th>登録日時</th><th>担当</th><th>個数</th></tr></thead>
           <tbody>${rows}</tbody>
@@ -164,6 +164,8 @@
     });
     detail.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+
+  mountStatusBar();
 
   async function init() {
     cfg = requireConfigOrRedirect();

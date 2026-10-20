@@ -42,6 +42,8 @@
   const tokenEl = document.getElementById("token");
   const msgEl = document.getElementById("msg");
 
+  mountStatusBar();
+
   (function fillFromSaved() {
     const cfg = getConfig();
     if (cfg) {

@@ -29,7 +29,7 @@
   table.pricetable {
     width: 100%;
     border-collapse: collapse;
-    background: #fff;
+    background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 8px;
     overflow: hidden;
@@ -42,15 +42,15 @@
     border-bottom: 1px solid var(--border);
   }
   table.pricetable th {
-    background: #f0f2f5;
+    background: rgba(34, 211, 238, 0.06);
     color: var(--muted);
     font-size: 12px;
   }
   table.pricetable tr:last-child td { border-bottom: none; }
   table.pricetable tr.clickable { cursor: pointer; }
-  table.pricetable tr.clickable:hover { background: #f7f9fb; }
+  table.pricetable tr.clickable:hover { background: rgba(34, 211, 238, 0.06); }
   td.money { font-variant-numeric: tabular-nums; }
-  td.save-positive { color: #1e7a34; font-weight: bold; }
+  td.save-positive { color: var(--ok); font-weight: bold; }
   td.save-negative { color: var(--danger); font-weight: bold; }
   .shelf-group {
     margin-top: 18px;
@@ -62,8 +62,9 @@
   .summary-figure {
     font-size: 26px;
     font-weight: bold;
-    color: #1e7a34;
+    color: var(--ok);
     font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 12px rgba(52, 245, 160, 0.35);
   }
   .summary-label { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
   .summary-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
@@ -248,7 +249,7 @@
       <div class="card">
         <button class="close-btn" id="close-detail">✕ 閉じる</button>
         <strong>${it.name}</strong>
-        <span style="color:#888; font-size:13px;">(${it.shelf || "-"} / 単位: ${it.unit})</span>
+        <span style="color:var(--muted); font-size:13px;">(${it.shelf || "-"} / 単位: ${it.unit})</span>
 
         <div class="freq-row">
           <label for="freq-input" style="margin:0;">月間発注回数</label>
@@ -355,6 +356,8 @@
       delete prices[itemId];
     }
   }
+
+  mountStatusBar();
 
   async function init() {
     cfg = requireConfigOrRedirect();

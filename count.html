@@ -105,7 +105,7 @@
         .map((name) => `<option value="${name}">${name}</option>`)
         .join("");
     } catch (e) {
-      listEl.innerHTML = `<p style="color:#c0392b">読み込みに失敗しました: ${e.message}</p>`;
+      listEl.innerHTML = `<p style="color:var(--danger)">読み込みに失敗しました: ${e.message}</p>`;
     }
   }
 
@@ -154,5 +154,6 @@
   }
 
   document.getElementById("submit-btn").addEventListener("click", submit);
+  mountStatusBar();
   init();
 </script>
