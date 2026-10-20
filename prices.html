@@ -1,0 +1,386 @@
+<title>価格管理 | フィットイージー西浦和店 備品管理</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="assets/style.css" />
+
+<header>
+  <h1>価格管理</h1>
+  <div class="sub">品目ごとの単価を記録し、見直しによる経費削減額を確認できます</div>
+</header>
+
+<main>
+  <a class="back" href="index.html">← メニューに戻る</a>
+
+  <div id="summary" class="card"></div>
+
+  <div class="card">
+    <label for="search">品目名で絞り込み</label>
+    <input type="text" id="search" placeholder="例: ペーパータオル" />
+  </div>
+
+  <div id="status" class="notice warn">読み込み中...</div>
+  <div id="table-wrap" hidden></div>
+  <div id="detail" hidden></div>
+</main>
+
+<script src="assets/app.js"></script>
+<style>
+  table.pricetable {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 13.5px;
+  }
+  table.pricetable th,
+  table.pricetable td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.pricetable th {
+    background: #f0f2f5;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  table.pricetable tr:last-child td { border-bottom: none; }
+  table.pricetable tr.clickable { cursor: pointer; }
+  table.pricetable tr.clickable:hover { background: #f7f9fb; }
+  td.money { font-variant-numeric: tabular-nums; }
+  td.save-positive { color: #1e7a34; font-weight: bold; }
+  td.save-negative { color: var(--danger); font-weight: bold; }
+  .shelf-group {
+    margin-top: 18px;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: bold;
+    color: var(--muted);
+  }
+  .summary-figure {
+    font-size: 26px;
+    font-weight: bold;
+    color: #1e7a34;
+    font-variant-numeric: tabular-nums;
+  }
+  .summary-label { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .summary-note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  #detail .close-btn {
+    float: right;
+    border: none;
+    background: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .freq-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0;
+  }
+  .freq-row input[type="number"] { width: 90px; margin-bottom: 0; }
+  .add-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 10px 0 16px;
+  }
+  .add-form .full { grid-column: 1 / -1; }
+  .add-form input { margin-bottom: 0; }
+  .btn-small {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .btn-small:hover { background: var(--accent-dark); }
+</style>
+<script>
+  let cfg;
+  let items = [];
+  let itemsById = {};
+  let prices = {}; // { item_id: { order_freq_per_year, history: [{date, price, note}] } }
+  let pricesSha = null;
+
+  function fmtYen(n) {
+    return "¥" + Number(n).toLocaleString("ja-JP");
+  }
+
+  function computeStats(itemId) {
+    const p = prices[itemId];
+    if (!p || !p.history || p.history.length === 0) {
+      return { latest: null, first: null, lowest: null, freq: (p && p.order_freq_per_year) || 0, annualSavings: null };
+    }
+    const history = p.history;
+    const latest = history[history.length - 1];
+    const first = history[0];
+    const lowest = history.reduce((a, b) => (b.price < a.price ? b : a), history[0]);
+    const freq = p.order_freq_per_year || 0;
+    let annualSavings = null;
+    if (history.length >= 2) {
+      annualSavings = (first.price - latest.price) * freq;
+    }
+    return { latest, first, lowest, freq, annualSavings };
+  }
+
+  function renderSummary() {
+    let total = 0;
+    let countTracked = 0;
+    items.forEach((it) => {
+      const s = computeStats(it.id);
+      if (s.annualSavings !== null) {
+        countTracked++;
+        if (s.annualSavings > 0) total += s.annualSavings;
+      }
+    });
+    const el = document.getElementById("summary");
+    el.innerHTML = `
+      <div class="summary-label">価格見直しによる年間削減額(合計)</div>
+      <div class="summary-figure">${fmtYen(total)}</div>
+      <div class="summary-note">単価が下がった品目について、(見直し前の単価 − 現在の単価)× 年間発注回数 の合計です。見直し履歴が2回以上ある品目: ${countTracked}件</div>
+    `;
+  }
+
+  function renderOverview(filterText) {
+    const wrap = document.getElementById("table-wrap");
+    const text = (filterText || "").trim();
+
+    const shelves = {};
+    items.forEach((it) => {
+      if (text && !it.name.includes(text)) return;
+      const shelf = it.shelf || "その他";
+      if (!shelves[shelf]) shelves[shelf] = [];
+      shelves[shelf].push(it);
+    });
+
+    let html = "";
+    Object.keys(shelves).forEach((shelf) => {
+      html += `<div class="shelf-group">${shelf}</div>`;
+      html += `<table class="pricetable"><thead><tr>
+        <th>品目</th><th>現在単価</th><th>見直し日</th><th>最安値</th><th>年間発注</th><th>年間削減額</th>
+      </tr></thead><tbody>`;
+      shelves[shelf].forEach((it) => {
+        const s = computeStats(it.id);
+        const latestText = s.latest ? `${fmtYen(s.latest.price)}/${it.unit}` : "未登録";
+        const dateText = s.latest ? s.latest.date : "-";
+        const lowestText = s.lowest ? `${fmtYen(s.lowest.price)}(${s.lowest.date})` : "-";
+        const freqText = s.freq ? `${s.freq}回/年` : "-";
+        let savingsText = "-";
+        let savingsClass = "";
+        if (s.annualSavings !== null) {
+          if (s.annualSavings > 0) {
+            savingsText = fmtYen(s.annualSavings);
+            savingsClass = "save-positive";
+          } else if (s.annualSavings < 0) {
+            savingsText = `-${fmtYen(Math.abs(s.annualSavings))}(増加)`;
+            savingsClass = "save-negative";
+          } else {
+            savingsText = fmtYen(0);
+          }
+        }
+        html += `<tr class="clickable" data-id="${it.id}">
+          <td>${it.name}</td>
+          <td class="money">${latestText}</td>
+          <td>${dateText}</td>
+          <td class="money">${lowestText}</td>
+          <td>${freqText}</td>
+          <td class="money ${savingsClass}">${savingsText}</td>
+        </tr>`;
+      });
+      html += `</tbody></table>`;
+    });
+
+    if (!html) html = "<p>該当する品目がありません。</p>";
+    wrap.innerHTML = html;
+    wrap.hidden = false;
+
+    wrap.querySelectorAll("tr[data-id]").forEach((row) => {
+      row.addEventListener("click", () => showDetail(row.dataset.id));
+    });
+  }
+
+  function historyRowsHtml(it) {
+    const p = prices[it.id];
+    const history = (p && p.history) || [];
+    if (history.length === 0) {
+      return `<tr><td colspan="4">まだ単価が登録されていません。</td></tr>`;
+    }
+    let rows = "";
+    for (let i = history.length - 1; i >= 0; i--) {
+      const e = history[i];
+      const prev = i > 0 ? history[i - 1] : null;
+      let diffText = "-";
+      let diffClass = "";
+      if (prev) {
+        const diff = e.price - prev.price;
+        if (diff < 0) {
+          diffText = `-${fmtYen(Math.abs(diff))}`;
+          diffClass = "save-positive";
+        } else if (diff > 0) {
+          diffText = `+${fmtYen(diff)}`;
+          diffClass = "save-negative";
+        } else {
+          diffText = fmtYen(0);
+        }
+      }
+      rows += `<tr>
+        <td>${e.date}</td>
+        <td class="money">${fmtYen(e.price)}/${it.unit}</td>
+        <td class="money ${diffClass}">${diffText}</td>
+        <td>${e.note || "-"}</td>
+      </tr>`;
+    }
+    return rows;
+  }
+
+  function showDetail(itemId) {
+    const it = itemsById[itemId];
+    const detail = document.getElementById("detail");
+    const p = prices[itemId] || { order_freq_per_year: "", history: [] };
+
+    detail.innerHTML = `
+      <div class="card">
+        <button class="close-btn" id="close-detail">✕ 閉じる</button>
+        <strong>${it.name}</strong>
+        <span style="color:#888; font-size:13px;">(${it.shelf || "-"} / 単位: ${it.unit})</span>
+
+        <div class="freq-row">
+          <label for="freq-input" style="margin:0;">年間発注回数</label>
+          <input type="number" id="freq-input" min="0" step="1" value="${p.order_freq_per_year || ""}" />
+          <span>回/年</span>
+          <button class="btn-small" id="save-freq">保存</button>
+        </div>
+
+        <p class="section-label" style="font-size:13px; font-weight:bold; color:var(--muted); margin:16px 0 8px;">単価を追加</p>
+        <div class="add-form">
+          <div>
+            <label for="price-date">見直した日付</label>
+            <input type="text" id="price-date" value="${todayDateStr()}" />
+          </div>
+          <div>
+            <label for="price-value">単価(円)</label>
+            <input type="number" id="price-value" min="0" step="1" placeholder="例: 280" />
+          </div>
+          <div class="full">
+            <label for="price-note">メモ(仕入れ先など・任意)</label>
+            <input type="text" id="price-note" placeholder="例: ○○商事に変更" />
+          </div>
+        </div>
+        <button class="btn-small" id="add-price">この単価を登録する</button>
+        <div id="detail-msg" style="margin-top:10px;"></div>
+
+        <p class="section-label" style="font-size:13px; font-weight:bold; color:var(--muted); margin:20px 0 8px;">単価の履歴</p>
+        <table class="pricetable">
+          <thead><tr><th>日付</th><th>単価</th><th>前回比</th><th>メモ</th></tr></thead>
+          <tbody>${historyRowsHtml(it)}</tbody>
+        </table>
+      </div>`;
+
+    detail.hidden = false;
+    document.getElementById("close-detail").addEventListener("click", () => {
+      detail.hidden = true;
+    });
+    document.getElementById("save-freq").addEventListener("click", () => saveFreq(itemId));
+    document.getElementById("add-price").addEventListener("click", () => addPrice(itemId));
+    detail.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function persistPrices(successMsg) {
+    const msgEl = document.getElementById("detail-msg");
+    msgEl.innerHTML = '<div class="notice warn">保存中...</div>';
+    try {
+      const result = await ghPutJson(
+        cfg,
+        "data/prices.json",
+        prices,
+        "価格情報の更新",
+        pricesSha
+      );
+      pricesSha = result.content.sha;
+      renderSummary();
+      renderOverview(document.getElementById("search").value);
+      return true;
+    } catch (e) {
+      msgEl.innerHTML = `<div class="notice error">${e.message}</div>`;
+      return false;
+    }
+  }
+
+  async function saveFreq(itemId) {
+    const val = Number(document.getElementById("freq-input").value || 0);
+    const before = prices[itemId] ? JSON.parse(JSON.stringify(prices[itemId])) : null;
+    if (!prices[itemId]) prices[itemId] = { order_freq_per_year: 0, history: [] };
+    prices[itemId].order_freq_per_year = val;
+
+    const ok = await persistPrices("年間発注回数を保存しました。");
+    if (ok) {
+      showDetail(itemId);
+      document.getElementById("detail-msg").innerHTML = '<div class="notice ok">年間発注回数を保存しました。</div>';
+    } else if (before) {
+      prices[itemId] = before;
+    } else {
+      delete prices[itemId];
+    }
+  }
+
+  async function addPrice(itemId) {
+    const date = document.getElementById("price-date").value.trim();
+    const price = Number(document.getElementById("price-value").value);
+    const note = document.getElementById("price-note").value.trim();
+    const msgEl = document.getElementById("detail-msg");
+
+    if (!date || !price || price <= 0) {
+      msgEl.innerHTML = '<div class="notice error">日付と単価を正しく入力してください。</div>';
+      return;
+    }
+
+    const before = prices[itemId] ? JSON.parse(JSON.stringify(prices[itemId])) : null;
+    if (!prices[itemId]) prices[itemId] = { order_freq_per_year: 0, history: [] };
+    if (!prices[itemId].history) prices[itemId].history = [];
+    prices[itemId].history.push({ date, price, note });
+
+    const ok = await persistPrices("単価を登録しました。");
+    if (ok) {
+      showDetail(itemId);
+      document.getElementById("detail-msg").innerHTML = '<div class="notice ok">単価を登録しました。</div>';
+    } else if (before) {
+      prices[itemId] = before;
+    } else {
+      delete prices[itemId];
+    }
+  }
+
+  async function init() {
+    cfg = requireConfigOrRedirect();
+    if (!cfg) return;
+
+    const statusEl = document.getElementById("status");
+    try {
+      const { data: itemsData } = await ghGetJson(cfg, "data/items.json");
+      items = itemsData.items || [];
+      itemsById = Object.fromEntries(items.map((it) => [it.id, it]));
+
+      const { data: pricesData, sha } = await ghGetJsonOrNull(cfg, "data/prices.json");
+      prices = pricesData || {};
+      pricesSha = sha;
+
+      statusEl.hidden = true;
+      renderSummary();
+      renderOverview("");
+    } catch (e) {
+      statusEl.className = "notice error";
+      statusEl.textContent = `読み込みに失敗しました: ${e.message}`;
+    }
+  }
+
+  document.getElementById("search").addEventListener("input", (e) => {
+    renderOverview(e.target.value);
+  });
+
+  init();
+</script>
