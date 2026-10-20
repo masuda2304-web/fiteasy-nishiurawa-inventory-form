@@ -56,6 +56,52 @@ async function ghGetJson(cfg, path) {
   return { data: JSON.parse(text), sha: json.sha };
 }
 
+async function ghGetJsonOrNull(cfg, path) {
+  const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${cfg.token}`,
+      Accept: "application/vnd.github+json",
+    },
+  });
+  if (res.status === 404) return { data: null, sha: null };
+  if (!res.ok) {
+    throw new Error(`接続に失敗しました: ${res.status}`);
+  }
+  const json = await res.json();
+  const text = base64ToUtf8(json.content);
+  return { data: JSON.parse(text), sha: json.sha };
+}
+
+// 既存ファイルの更新(sha指定あり)・新規作成(sha未指定)の両方に使う
+async function ghPutJson(cfg, path, obj, message, sha) {
+  const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`;
+  const body = {
+    message: message || `update ${path}`,
+    content: utf8ToBase64(JSON.stringify(obj, null, 2)),
+  };
+  if (sha) body.sha = sha;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${cfg.token}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 409 || res.status === 422) {
+    throw new Error(
+      "保存に失敗しました(他の人が同時に更新した可能性があります)。画面を再読み込みしてからもう一度お試しください。"
+    );
+  }
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`送信に失敗しました: ${res.status} ${errText}`);
+  }
+  return await res.json();
+}
+
 async function ghListDir(cfg, path) {
   const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${path}`;
   const res = await fetch(url, {
