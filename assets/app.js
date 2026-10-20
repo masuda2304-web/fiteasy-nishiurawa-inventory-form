@@ -166,3 +166,26 @@ function nowMinutesOfDay() {
 function randSuffix() {
   return Math.random().toString(36).slice(2, 8);
 }
+
+// ---- ステータスバー(各ページ共通のライブ時計 + オンライン表示) ----
+function mountStatusBar() {
+  const header = document.querySelector("header");
+  if (!header) return;
+  const bar = document.createElement("div");
+  bar.className = "statusbar";
+  bar.innerHTML =
+    '<span class="status-left"><span class="status-dot"></span>SYSTEM ONLINE</span>' +
+    '<span class="status-clock" id="statusbar-clock">--:--:--</span>';
+  header.insertBefore(bar, header.firstChild);
+
+  function tick() {
+    const d = nowJstDate();
+    const pad = (n) => String(n).padStart(2, "0");
+    const el = document.getElementById("statusbar-clock");
+    if (el) {
+      el.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+  }
+  tick();
+  setInterval(tick, 1000);
+}
