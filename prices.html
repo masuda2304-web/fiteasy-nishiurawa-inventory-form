@@ -104,7 +104,7 @@
   let cfg;
   let items = [];
   let itemsById = {};
-  let prices = {}; // { item_id: { order_freq_per_year, history: [{date, price, note}] } }
+  let prices = {}; // { item_id: { order_freq_per_month, history: [{date, price, note}] } }
   let pricesSha = null;
 
   function fmtYen(n) {
@@ -114,16 +114,16 @@
   function computeStats(itemId) {
     const p = prices[itemId];
     if (!p || !p.history || p.history.length === 0) {
-      return { latest: null, first: null, lowest: null, freq: (p && p.order_freq_per_year) || 0, annualSavings: null };
+      return { latest: null, first: null, lowest: null, freq: (p && p.order_freq_per_month) || 0, annualSavings: null };
     }
     const history = p.history;
     const latest = history[history.length - 1];
     const first = history[0];
     const lowest = history.reduce((a, b) => (b.price < a.price ? b : a), history[0]);
-    const freq = p.order_freq_per_year || 0;
+    const freq = p.order_freq_per_month || 0;
     let annualSavings = null;
     if (history.length >= 2) {
-      annualSavings = (first.price - latest.price) * freq;
+      annualSavings = (first.price - latest.price) * freq * 12;
     }
     return { latest, first, lowest, freq, annualSavings };
   }
@@ -142,7 +142,7 @@
     el.innerHTML = `
       <div class="summary-label">価格見直しによる年間削減額(合計)</div>
       <div class="summary-figure">${fmtYen(total)}</div>
-      <div class="summary-note">単価が下がった品目について、(見直し前の単価 − 現在の単価)× 年間発注回数 の合計です。見直し履歴が2回以上ある品目: ${countTracked}件</div>
+      <div class="summary-note">単価が下がった品目について、(見直し前の単価 − 現在の単価)× 月間発注回数 × 12か月 の合計です。見直し履歴が2回以上ある品目: ${countTracked}件</div>
     `;
   }
 
@@ -162,14 +162,14 @@
     Object.keys(shelves).forEach((shelf) => {
       html += `<div class="shelf-group">${shelf}</div>`;
       html += `<table class="pricetable"><thead><tr>
-        <th>品目</th><th>現在単価</th><th>見直し日</th><th>最安値</th><th>年間発注</th><th>年間削減額</th>
+        <th>品目</th><th>現在単価</th><th>見直し日</th><th>最安値</th><th>月間発注</th><th>年間削減額</th>
       </tr></thead><tbody>`;
       shelves[shelf].forEach((it) => {
         const s = computeStats(it.id);
         const latestText = s.latest ? `${fmtYen(s.latest.price)}/${it.unit}` : "未登録";
         const dateText = s.latest ? s.latest.date : "-";
         const lowestText = s.lowest ? `${fmtYen(s.lowest.price)}(${s.lowest.date})` : "-";
-        const freqText = s.freq ? `${s.freq}回/年` : "-";
+        const freqText = s.freq ? `${s.freq}回/月` : "-";
         let savingsText = "-";
         let savingsClass = "";
         if (s.annualSavings !== null) {
@@ -241,7 +241,7 @@
   function showDetail(itemId) {
     const it = itemsById[itemId];
     const detail = document.getElementById("detail");
-    const p = prices[itemId] || { order_freq_per_year: "", history: [] };
+    const p = prices[itemId] || { order_freq_per_month: "", history: [] };
 
     detail.innerHTML = `
       <div class="card">
@@ -250,9 +250,9 @@
         <span style="color:#888; font-size:13px;">(${it.shelf || "-"} / 単位: ${it.unit})</span>
 
         <div class="freq-row">
-          <label for="freq-input" style="margin:0;">年間発注回数</label>
-          <input type="number" id="freq-input" min="0" step="1" value="${p.order_freq_per_year || ""}" />
-          <span>回/年</span>
+          <label for="freq-input" style="margin:0;">月間発注回数</label>
+          <input type="number" id="freq-input" min="0" step="1" value="${p.order_freq_per_month || ""}" />
+          <span>回/月</span>
           <button class="btn-small" id="save-freq">保存</button>
         </div>
 
@@ -314,13 +314,13 @@
   async function saveFreq(itemId) {
     const val = Number(document.getElementById("freq-input").value || 0);
     const before = prices[itemId] ? JSON.parse(JSON.stringify(prices[itemId])) : null;
-    if (!prices[itemId]) prices[itemId] = { order_freq_per_year: 0, history: [] };
-    prices[itemId].order_freq_per_year = val;
+    if (!prices[itemId]) prices[itemId] = { order_freq_per_month: 0, history: [] };
+    prices[itemId].order_freq_per_month = val;
 
-    const ok = await persistPrices("年間発注回数を保存しました。");
+    const ok = await persistPrices("月間発注回数を保存しました。");
     if (ok) {
       showDetail(itemId);
-      document.getElementById("detail-msg").innerHTML = '<div class="notice ok">年間発注回数を保存しました。</div>';
+      document.getElementById("detail-msg").innerHTML = '<div class="notice ok">月間発注回数を保存しました。</div>';
     } else if (before) {
       prices[itemId] = before;
     } else {
@@ -340,7 +340,7 @@
     }
 
     const before = prices[itemId] ? JSON.parse(JSON.stringify(prices[itemId])) : null;
-    if (!prices[itemId]) prices[itemId] = { order_freq_per_year: 0, history: [] };
+    if (!prices[itemId]) prices[itemId] = { order_freq_per_month: 0, history: [] };
     if (!prices[itemId].history) prices[itemId].history = [];
     prices[itemId].history.push({ date, price, note });
 
