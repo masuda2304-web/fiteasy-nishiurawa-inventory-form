@@ -1,27 +1,27 @@
 @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap');
 
 :root {
-  --header-bg: #0b1726;
-  --header-bg-dark: #050b14;
-  --bg: #05090f;
-  --card-bg: #0e1c2c;
-  --field-bg: #0a1626;
-  --border: #1d3650;
-  --text: #e3f2fa;
-  --muted: #7b96ab;
-  --accent: #22d3ee;
+  --header-bg: #16314c;
+  --header-bg-dark: #0d2036;
+  --bg: #0e2238;
+  --card-bg: #1c3952;
+  --field-bg: #16304a;
+  --border: #3a6287;
+  --text: #f3fbff;
+  --muted: #a9c3d6;
+  --accent: #2fe0ff;
   --accent-dark: #0ea5c4;
-  --accent-soft: rgba(34, 211, 238, 0.12);
-  --danger: #ff5c72;
-  --danger-bg: rgba(255, 92, 114, 0.12);
-  --warn: #ffb648;
-  --warn-bg: rgba(255, 182, 72, 0.12);
-  --ok: #34f5a0;
-  --ok-bg: rgba(52, 245, 160, 0.12);
-  --btn-secondary-bg: #1c3347;
-  --btn-secondary-hover: #27465f;
-  --line: rgba(255, 255, 255, 0.08);
-  --glow: rgba(34, 211, 238, 0.35);
+  --accent-soft: rgba(47, 224, 255, 0.16);
+  --danger: #ff7a8c;
+  --danger-bg: rgba(255, 122, 140, 0.16);
+  --warn: #ffc670;
+  --warn-bg: rgba(255, 198, 112, 0.16);
+  --ok: #52f5b0;
+  --ok-bg: rgba(82, 245, 176, 0.16);
+  --btn-secondary-bg: #2c4f6e;
+  --btn-secondary-hover: #3a6388;
+  --line: rgba(255, 255, 255, 0.14);
+  --glow: rgba(47, 224, 255, 0.4);
   --display: "Zen Kaku Gothic New", "Hiragino Sans", sans-serif;
   --body-font: "Noto Sans JP", "Hiragino Sans", sans-serif;
   --mono: "JetBrains Mono", "SFMono-Regular", monospace;
@@ -38,12 +38,12 @@ body {
   -webkit-font-smoothing: antialiased;
   background-color: var(--bg);
   background-image:
-    linear-gradient(30deg, #0c1c2c 12%, transparent 12.5%, transparent 87%, #0c1c2c 87.5%, #0c1c2c),
-    linear-gradient(150deg, #0c1c2c 12%, transparent 12.5%, transparent 87%, #0c1c2c 87.5%, #0c1c2c),
-    linear-gradient(30deg, #0c1c2c 12%, transparent 12.5%, transparent 87%, #0c1c2c 87.5%, #0c1c2c),
-    linear-gradient(150deg, #0c1c2c 12%, transparent 12.5%, transparent 87%, #0c1c2c 87.5%, #0c1c2c),
-    linear-gradient(60deg, #0e2032 25%, transparent 25.5%, transparent 75%, #0e2032 75%, #0e2032),
-    linear-gradient(60deg, #0e2032 25%, transparent 25.5%, transparent 75%, #0e2032 75%, #0e2032);
+    linear-gradient(30deg, #173656 12%, transparent 12.5%, transparent 87%, #173656 87.5%, #173656),
+    linear-gradient(150deg, #173656 12%, transparent 12.5%, transparent 87%, #173656 87.5%, #173656),
+    linear-gradient(30deg, #173656 12%, transparent 12.5%, transparent 87%, #173656 87.5%, #173656),
+    linear-gradient(150deg, #173656 12%, transparent 12.5%, transparent 87%, #173656 87.5%, #173656),
+    linear-gradient(60deg, #1b3e62 25%, transparent 25.5%, transparent 75%, #1b3e62 75%, #1b3e62),
+    linear-gradient(60deg, #1b3e62 25%, transparent 25.5%, transparent 75%, #1b3e62 75%, #1b3e62);
   background-size: 80px 140px;
   background-position: 0 0, 0 0, 40px 70px, 40px 70px, 0 0, 40px 70px;
   animation: hexDrift 60s linear infinite;
@@ -66,7 +66,7 @@ body {
 }
 
 @keyframes cardPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0), var(--shadow-md); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(47, 224, 255, 0), var(--shadow-md); }
   50% { box-shadow: 0 0 22px 2px var(--glow), var(--shadow-md); }
 }
 
@@ -148,7 +148,7 @@ header h1 {
   font-weight: 900;
   font-size: 24px;
   letter-spacing: 0.02em;
-  text-shadow: 0 0 18px rgba(34, 211, 238, 0.35);
+  text-shadow: 0 0 18px rgba(47, 224, 255, 0.35);
 }
 
 header .sub {
@@ -213,7 +213,7 @@ main {
   font-size: 22px;
   font-weight: 700;
   color: var(--accent);
-  text-shadow: 0 0 10px rgba(34, 211, 238, 0.4);
+  text-shadow: 0 0 10px rgba(47, 224, 255, 0.4);
 }
 
 .radar {
@@ -221,12 +221,12 @@ main {
   width: 82px;
   height: 82px;
   border-radius: 50%;
-  border: 1px solid rgba(34, 211, 238, 0.35);
+  border: 1px solid rgba(47, 224, 255, 0.35);
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle, rgba(34, 211, 238, 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(47, 224, 255, 0.08) 0%, transparent 70%);
 }
 
 .radar::before {
@@ -234,7 +234,7 @@ main {
   position: absolute;
   inset: 13px;
   border-radius: 50%;
-  border: 1px solid rgba(34, 211, 238, 0.22);
+  border: 1px solid rgba(47, 224, 255, 0.22);
 }
 
 .radar::after {
@@ -242,7 +242,7 @@ main {
   position: absolute;
   top: 50%; left: 50%;
   width: 48%; height: 1px;
-  background: linear-gradient(90deg, rgba(34, 211, 238, 0.9), transparent);
+  background: linear-gradient(90deg, rgba(47, 224, 255, 0.9), transparent);
   transform-origin: left center;
   animation: radarSweep 3s linear infinite;
 }
@@ -290,7 +290,7 @@ main {
 }
 
 .nav-card.primary .nav-sub { color: #a9c2d4; }
-.nav-card.primary .nav-icon { background: rgba(34, 211, 238, 0.18); color: var(--accent); }
+.nav-card.primary .nav-icon { background: rgba(47, 224, 255, 0.18); color: var(--accent); }
 
 .nav-num {
   flex: none;
@@ -300,7 +300,7 @@ main {
   font-weight: 700;
   color: var(--accent);
   opacity: 0.55;
-  text-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
+  text-shadow: 0 0 8px rgba(47, 224, 255, 0.4);
 }
 
 .nav-card.primary .nav-num { color: #fff; opacity: 0.9; }
@@ -368,12 +368,12 @@ main {
   background: var(--accent);
   color: #06131d;
   transition: background 0.12s ease, box-shadow 0.12s ease;
-  box-shadow: 0 0 0 0 rgba(34, 211, 238, 0);
+  box-shadow: 0 0 0 0 rgba(47, 224, 255, 0);
 }
 
 .menu-btn:hover {
   background: var(--accent-dark);
-  box-shadow: 0 0 16px rgba(34, 211, 238, 0.4);
+  box-shadow: 0 0 16px rgba(47, 224, 255, 0.4);
 }
 
 .menu-btn.secondary {
@@ -430,19 +430,19 @@ label {
 .notice.warn {
   background: var(--warn-bg);
   color: var(--warn);
-  border-color: rgba(255, 182, 72, 0.3);
+  border-color: rgba(255, 198, 112, 0.4);
 }
 
 .notice.error {
   background: var(--danger-bg);
   color: var(--danger);
-  border-color: rgba(255, 92, 114, 0.3);
+  border-color: rgba(255, 122, 140, 0.4);
 }
 
 .notice.ok {
   background: var(--ok-bg);
   color: var(--ok);
-  border-color: rgba(52, 245, 160, 0.3);
+  border-color: rgba(82, 245, 176, 0.4);
 }
 
 /* ---- 在庫入力リスト ---- */
